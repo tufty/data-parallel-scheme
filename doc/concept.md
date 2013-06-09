@@ -121,6 +121,11 @@ generate code.  If that doesn't pan out, I might have to fall back on OpenGL.
 
 ##Implementation issues##
 
+###Structure###
+
+It makes sense to have a multi-layer design, especially if it's possible I will have to fall
+back on OpenGL or some other method.
+
 ###Efficiency###
 
 Obviously, what we want to do is write code that's efficient.  This is a good resource to keep
@@ -141,4 +146,13 @@ types.
 ###Impedance mismatch # 2 - Typing###
 
 Scheme is, of course, a language that makes the most of (strong) dynamic typing. LLVM IR
-is statically typed.
+is statically typed.  It's probably not
+ feasible to take the "standard" scheme approach of tagging and dynamic typechecking -
+it's likely that I will have to take a statically typed approach.  That sucks a bit.
+
+###How to evaluate code quality###
+
+I'm probably gonna need a decompiler for the resulting binaries and some way of evaluating
+"goodness".  Really not sure where to go with that.  Will ponder this later.
+
+
