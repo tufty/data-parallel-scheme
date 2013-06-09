@@ -57,6 +57,17 @@ platform.  There's a few choices:
   Against:
   - Not widely available
   - Only suports high-end GPUs - "lesser" platforms have to make do with CPU-only
+- LLVM
+
+  For:
+  - Enormously flexible
+  - Code generators for major GPUs (AMD R600, NVidia), work-in-progress for others (videocore, etc)
+	and current CPU architectures (x86, ARM)
+  - Optimisations for both "sequential" code and "parallel" (with http://polly.llvm.org)
+
+  Against:
+  - Continually "in flux", may depend on a specific version
+  - LLVM IR is hard to write
 - CUDA
 
   For:
@@ -101,19 +112,12 @@ platform.  There's a few choices:
   - Extremely hard to get right if you're not an expert
   - Low level documentation is rare and sketchy
 
-Surprisingly perhaps, my choice here is OpenGL Shaders.  OpenCL is attractive, but it would mean
-upgrading my machine to get full usage (it's a 5 year old iMac), and it would be too easy to take
-the "easy" way out, repurposing a scheme->c compiler.  CUDA isn't supported on my hardware, so
-that's out.
+Of the above, the most attractive to me is LLVM, closely followed by GLSL.  The rest are either
+totally out (Windows only, NVidia only, ect) or would require me to buy new hardware to get them
+to work (OpenCL).
 
-So.  GLSL as GPU compute platform, but with the following overall goals:
-
-- GPU *and* CPU compute.  Don't want to leave those transistors idling, do we?
-- Layered design.  Want to be able to "swap out" GLSL and "swap in" something else if needed
-  (Raspberry Pi GPU-specific assembler, anyone?)
-
-Now, GLSL is *not* a general-purpose compute platform, although it can be butchered to
-be one if you're crazy enough.  And yes, I think I'm crazy enough.
+So the current favoured approach is to generate LLVM IR and then harness the wonders of LLVM to
+generate code.  If that doesn't pan out, I might have to fall back on OpenGL.
 
 ##Implementation issues##
 
@@ -124,14 +128,17 @@ in mind.
 
 http://www.humus.name/Articles/Persson_LowLevelThinking.pdf
 
-###Numeric stack###
+###Impedance mismatch # 1 - Numeric stack###
 
 Scheme, of course, has a full numeric stack, with rationals, arbitrary length integers,
 complex numbers, imprecise numbers and so on.  These provide enormous flexibility, but
 come at a cost, not least of which is not having a necessarily fixed size for numbers.
 
-OpenGL uses the "C" approach. Fixed-range integers, fixed-size imprecise numbers (floats)
-and booleans.  That's it.
+LLVM uses something approaching the "C" approach.  We can have integers of (almost) arbitrary
+size, the various IEEE floating point types, and that's your lot until you start deriving other
+types.
 
-How to deal with this impedance mismatch?
+###Impedance mismatch # 2 - Typing###
 
+Scheme is, of course, a language that makes the most of (strong) dynamic typing. LLVM IR
+is statically typed.
