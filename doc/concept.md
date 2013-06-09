@@ -60,7 +60,7 @@ platform.  There's a few choices:
   - Well documented with much example code
   Against:
   - GPU only
-  - I don't have an NVidia GPU :)
+  - Vendor-specific, I don't have an NVidia GPU :)
 - OpenGL Shader Language
   For:
   - Standardised
@@ -69,6 +69,17 @@ platform.  There's a few choices:
   - GPU only
   - Not a general purpose compute platform - aimed at graphics usage
   - Restricted subset of operators.
+- High Level Shader Language (HLSL)
+  For:
+  - Well documented, much example code
+  Against
+  - GPU only
+  - Vendor-specific, I don't do MS
+- Brook+
+  For:
+  - Already does a lot of what we want.
+  Against:
+  - Not sure.
 - GPU specific assembler
   For:
   - Allows access to all functionality of the GPU
@@ -87,3 +98,27 @@ So.  GLSL as GPU compute platform, but with the following overall goals:
 - GPU *and* CPU compute.  Don't want to leave those transistors idling, do we?
 - Layered design.  Want to be able to "swap out" GLSL and "swap in" something else if needed
   (Raspberry Pi GPU-specific assembler, anyone?)
+
+Now, GLSL is *not* a general-purpose compute platform, although it can be butchered to
+be one if you're crazy enough.  And yes, I think I'm crazy enough.
+
+##Implementation issues##
+
+###Efficiency###
+
+Obviously, what we want to do is write code that's efficient.  This is a good resource to keep
+in mind.
+
+http://www.humus.name/Articles/Persson_LowLevelThinking.pdf
+
+###Numeric stack###
+
+Scheme, of course, has a full numeric stack, with rationals, arbitrary length integers,
+complex numbers, imprecise numbers and so on.  These provide enormous flexibility, but
+come at a cost, not least of which is not having a necessarily fixed size for numbers.
+
+OpenGL uses the "C" approach. Fixed-range integers, fixed-size imprecise numbers (floats)
+and booleans.  That's it.
+
+How to deal with this impedance mismatch?
+
