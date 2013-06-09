@@ -1,6 +1,7 @@
 # Concepts #
 
-The idea is to write a data-parallel DSL in scheme.
+The idea is to write a data-parallel DSL in scheme, and perhaps go as far a scheme->data-parallel DSL
+compiler and runtime.
 
 Requirements -
 
@@ -46,43 +47,55 @@ The next question is the "target" platform.  Not in terms of hardware, but in te
 platform.  There's a few choices:
 
 - OpenCL
+
   For:
   - Flexible
   - Standardised
   - Implements most of the "C" language
   - Uses GPU & CPU compute targets transparently
+  
   Against:
   - Not widely available
   - Only suports high-end GPUs - "lesser" platforms have to make do with CPU-only
 - CUDA
+
   For:
   - Flexible
   - Well documented with much example code
+  
   Against:
   - GPU only
   - Vendor-specific, I don't have an NVidia GPU :)
 - OpenGL Shader Language
+
   For:
   - Standardised
   - Widely available, with software emulation available on unsupported platforms
+  
   Against:
   - GPU only
   - Not a general purpose compute platform - aimed at graphics usage
   - Restricted subset of operators.
 - High Level Shader Language (HLSL)
+
   For:
   - Well documented, much example code
+  
   Against
   - GPU only
   - Vendor-specific, I don't do MS
 - Brook+
+
   For:
   - Already does a lot of what we want.
+  
   Against:
-  - Not sure.
+  - Not sure.  Scheme->Brook?  dunno.
 - GPU specific assembler
+
   For:
   - Allows access to all functionality of the GPU
+  
   Against:
   - Entirely platform specific
   - Extremely hard to get right if you're not an expert
