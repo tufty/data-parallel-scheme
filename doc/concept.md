@@ -150,9 +150,24 @@ is statically typed.  It's probably not
  feasible to take the "standard" scheme approach of tagging and dynamic typechecking -
 it's likely that I will have to take a statically typed approach.  That sucks a bit.
 
+https://github.com/norton/chibi-scheme/blob/master/lib/chibi/type-inference.scm might help
+
 ###How to evaluate code quality###
 
 I'm probably gonna need a decompiler for the resulting binaries and some way of evaluating
 "goodness".  Really not sure where to go with that.  Will ponder this later.
 
+###How to deal with conditionals###
 
+OpenGL really, really doesn't like conditionals.  Much of this is perhaps down to compiler
+implementations, but conditionals are unpleasant, and can reuslt in all sorts of nastiness.
+Might need to do some AST rewriting to "lift" conditionals and split cases into separate 
+shaders, using split / calculate / merge stages.
+
+Thus (begin (x) (y) (if w (z) 1)) might be split out into two separate shaders if it can 
+be proved that w is not dependent on (x) and (y), thus (begin (x) (y) (z)) and (begin (x) (y) 1)
+
+In this case, we need to somehow make one shader operate on one set of data, and another on 
+another, and then fold them back together as a separate pass.  Depth buffering is probably the
+neatest way to do this, but potentially means passing massive amounts of vertex data around.  
+First cut render to depth buffer? 
