@@ -36,6 +36,9 @@
 (define (env-extend* kl vl e)
   (append (zip kl vl) e))
 
+(define (back:compile str)
+  str)
+
 ;; The compiler stage is based loosely on Abdulaziz Ghuloum's work
 (define back:emit-expr
   (case-lambda
@@ -64,13 +67,11 @@
                                    (map back:opengl:convert-name formals)
                                    (map back:opengl:convert-type formal-types)))))
          
-
+;; Emitting a lambda expression
 (define (back:emit-lambda return-type formals formal-types body-expr env k)
   (let ([new-env (env-extend* formals formal-types env)]
         [signature (gen-signature formals formal-types)])
-
+    (k (back:emit-expr body-expr new-env
+                       (lambda (e) (format "(~a) { ~a }" signature e))))))
 
   
-  (k (back:emit-expr body-expr env (lambda (e)
-                                     `(
-         
