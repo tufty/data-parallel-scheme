@@ -171,3 +171,41 @@ In this case, we need to somehow make one shader operate on one set of data, and
 another, and then fold them back together as a separate pass.  Depth buffering is probably the
 neatest way to do this, but potentially means passing massive amounts of vertex data around.  
 First cut render to depth buffer? 
+
+Given the following:
+
+`(lambda (x)  
+  (+ x (if (> 1 x)  
+           (f x)  
+		   (g x))))`
+
+We can lift the conditional to provide
+
+`(lambda (x)  
+  (if (> 1 x)  
+      (+ 1 (f x))  
+	  (+ 1 (g x))))`
+
+If x is an array data type, this provides the opportunity to break the computation down into
+4 sequential steps as follows:
+
+`(lambda (x)  
+  (let ([x1 (select (> 1 x) #t #f)]  
+        [x2 (+ 1 (f x))]  
+		[x3 (+ 1 (g x))])  
+    (select x1 x2 x3)))`
+    
+Obviously the second and third steps might, and probably should, be optimised to conditionalise
+on `x1`, (in OpenGL, probably using a depth or stencil buffer approach), although this may impose more cost than it reduces, but the fundamental structure is evident
+
+- Using a parallel selection across the input data, segment into subsets for all conditionals
+  that don't trivially reduce to a selection between 2 known values
+  
+- For each subset (2 in the above case, but conditional lifting could result in many more)
+  carry out the relevant, non-conditional, computation
+
+- Reuse the segmentation data created in the first step to recombine the results.
+
+### What of reductions? ###
+
+Reductions probably involve the "mipmapping" approach or similar.
