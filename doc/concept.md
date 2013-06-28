@@ -157,6 +157,9 @@ https://github.com/norton/chibi-scheme/blob/master/lib/chibi/type-inference.scm 
 I'm probably gonna need a decompiler for the resulting binaries and some way of evaluating
 "goodness".  Really not sure where to go with that.  Will ponder this later.
 
+Apple's OpenGL implementation, at least on my iMac, doesn't provide `GL_ARB_get_program_binary`,
+which might well have been invaluable.  I'm really not sure how to do this.
+
 ###How to deal with conditionals###
 
 OpenGL really, really doesn't like conditionals.  Much of this is perhaps down to compiler
@@ -224,4 +227,5 @@ For "trivial" parallel mappings across datasets (and, potentially, dataset creat
 
 ### What of reductions? ###
 
-Reductions probably involve the "mipmapping" approach or similar.
+Reductions are relatively boring, involving repeated application of a reduction function
+on 4 elements to carry out power-of-two reductions in the style of mipmapping.
