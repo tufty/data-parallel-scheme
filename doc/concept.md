@@ -174,26 +174,26 @@ First cut render to depth buffer?
 
 Given the following:
 
-`(lambda (x)  
-  (+ x (if (> 1 x)  
-           (f x)  
-		   (g x))))`
+    (lambda (x)  
+      (+ x (if (> 1 x)  
+               (f x)  
+		       (g x))))
 
 We can lift the conditional to provide
 
-`(lambda (x)  
-  (if (> 1 x)  
-      (+ 1 (f x))  
-	  (+ 1 (g x))))`
+    (lambda (x)  
+      (if (> 1 x)  
+          (+ 1 (f x))  
+    	  (+ 1 (g x))))
 
 If x is an array data type, this provides the opportunity to break the computation down into
 4 sequential steps as follows:
 
-`(lambda (x)  
-  (let ([x1 (select (> 1 x) #t #f)]  
-        [x2 (+ 1 (f x))]  
-		[x3 (+ 1 (g x))])  
-    (select x1 x2 x3)))`
+    (lambda (x)  
+      (let ([x1 (select (> 1 x) #t #f)]  
+            [x2 (+ 1 (f x))]  
+    		[x3 (+ 1 (g x))])  
+        (select x1 x2 x3)))
     
 Obviously the second and third steps might, and probably should, be optimised to conditionalise
 on `x1`, (in OpenGL, probably using a depth or stencil buffer approach), although this may impose more cost than it reduces, but the fundamental structure is evident
@@ -205,6 +205,22 @@ on `x1`, (in OpenGL, probably using a depth or stencil buffer approach), althoug
   carry out the relevant, non-conditional, computation
 
 - Reuse the segmentation data created in the first step to recombine the results.
+
+A more idiomatic way of doing things might be to use code that perhaps looks something like this:
+
+    (lambda (x)
+	  (select-parmap-merge (if (> 1 x) 0 1)
+	    [0 => (+ 1 (f x))]
+		[1 => (+ 1 (g x))]))
+
+Where `select-parmap-merge` deals with the boilerplate of generating programs for the various cases,
+generating the selection data, and merging the results at the end.  This suggests a syntax something
+like
+
+    (lambda (x)
+	  (parmap (+ 1 x)))
+
+For "trivial" parallel mappings across datasets (and, potentially, dataset creation)
 
 ### What of reductions? ###
 
