@@ -229,3 +229,6 @@ For "trivial" parallel mappings across datasets (and, potentially, dataset creat
 
 Reductions are relatively boring, involving repeated application of a reduction function
 on 4 elements to carry out power-of-two reductions in the style of mipmapping.
+
+	(lambda (x)
+	  (reduce Fn x))
