@@ -78,13 +78,10 @@
 
 ;; Emit a variable expression
 (define (back:emit-var expr target-type env k)
-  (display expr) (newline)
-  (display target-type) (newline)
-  (display env) (newline)
-  (let ([env-type (assoc expr env)])
+  (let ([env-type (cdr (assoc expr env))])
     (cond [(null? env-type) (error 'back:emit-var "variable not defined in compile-time env" expr)]
-          [(and (eqv? (car target-type) (car src-type))
-                (= (cdr target-type) (cdr src-type)))
+          [(and (eqv? (car target-type) (car env-type))
+                (= (cdr target-type) (cdr env-type)))
            (k (back:opengl:convert-name expr))]
           [else (back:opengl:emit-type-conversion env-type target-type expr k)])))
 
