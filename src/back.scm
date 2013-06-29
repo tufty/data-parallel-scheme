@@ -13,7 +13,8 @@
 ;;
 ;; expr          := const-expr | var-expr | lambda-expr | sel-expr |
 ;;                  let-expr | seq-expr | app-expr | tail-expr | return-expr
-;; const-expr    := value
+;; const-expr    := literal-expr | var-expr
+;; literal-expr  := value
 ;; var-expr      := symbol
 ;; lambda-expr   := (lambda lambda-type (var-expr ...) expr)
 ;; sel-expr      := (select type expr const-expr const-expr)
@@ -42,8 +43,10 @@
   str)
 
 (define var-expr? symbol?)
-(define (const-expr? x)
+(define (literal-expr? x)
   (or (number? x) (boolean? x) (char? x) (string? x)))
+(define (const-expr? x)
+  (or (var-expr? x) (literal-expr? x)))
 
 ;; The compiler stage is based loosely on Abdulaziz Ghuloum's work
 (define back:emit-expr
@@ -55,10 +58,12 @@
      (match expr
        [`(lambda [(,formal-types ...) -> ,return-type] (,formals ...) ,body-expr)
         (back:emit-lambda return-type formals formal-types body-expr target-type env k)]
+       [`(select ,type ,test-expr ,consequence ,alternate)
+        (back:emit-select-expr type test-expr consequence alternate target-type env k)]
        [(? var-expr?)
         (back:emit-var expr target-type env k)]
-       [(? const-expr?)
-        (k expr)]
+       [(? literal-expr?)
+        (back:emit-literal expr target-type env k)]
        [E (error 'back:emit-expr "Unhandled expression type" E)])]))
 
 (define (back:opengl:convert-name x)
@@ -78,17 +83,29 @@
 
 ;; Emit a variable expression
 (define (back:emit-var expr target-type env k)
-  (let ([env-type (cdr (assoc expr env))])
-    (cond [(null? env-type) (error 'back:emit-var "variable not defined in compile-time env" expr)]
-          [(and (eqv? (car target-type) (car env-type))
-                (= (cdr target-type) (cdr env-type)))
-           (k (back:opengl:convert-name expr))]
-          [else (back:opengl:emit-type-conversion env-type target-type expr k)])))
+  (let ([env-type (assoc expr env)])
+    (if (null? env-type)
+        (error 'back:emit-var "variable not defined in compile-time env" expr)
+        (back:opengl:emit-type-conversion (cdr env-type)
+                                          target-type
+                                          (back:opengl:convert-name expr) k))))
+
+;; Emit a literal expression
+(define (back:emit-literal expr target-type env k)
+  (let ([intrinsic-type (cond [(integer? expr) '[int . 1]]
+                              [(number? expr)  '[float . 1]]
+                              [(boolean? expr) '[bool . 1]]
+                              [(char? expr)    '[uint . 1]]
+                              [else (error 'back:emit-literal "don't know how to handle this type yet" expr)])])
+    (back:opengl:emit-type-conversion intrinsic-type target-type expr k)))
 
 ;; Emit a type conversion
 (define (back:opengl:emit-type-conversion src-type dest-type expr k)
   ;; Simplest thing that could possibly work for the moment
-  (k (format "~a(~a)" (car dest-type) (car src-type))))
+  (if (and (eqv? (car dest-type) (car src-type))
+           (= (cdr dest-type) (cdr src-type)))
+      (k (format "~a" expr))
+      (k (format "~a(~a)" (car dest-type) expr))))
 
 ;; Emitting a lambda expression
 (define (back:emit-lambda return-type formals formal-types body-expr target-type env k)
@@ -112,7 +129,11 @@
  (define (identity x) x))
 
 (test-equal (back:emit-expr 'a '[float . 1] env identity) "a")
+(test-equal (back:emit-expr 'a '[int . 1] env identity) "int(a)")
 (test-equal (back:emit-expr 'abc-def '[int . 1] env identity) "abc_def")
+(test-equal (back:emit-expr '1 '[int . 1] env identity) "1")
+(test-equal (back:emit-expr '1 '[float . 1] env identity) "float(1)")
+(test-equal (back:emit-expr '1 '[mat3 . 1] env identity) "mat3(1)")
 
 #;(test-equal (back:emit-expr '(lambda [([int . 1] [float . 1]) -> [void . 0]] (a b) a)) env identity
             "(int a, float b) { a; }")
