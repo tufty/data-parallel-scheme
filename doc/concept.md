@@ -227,8 +227,114 @@ For "trivial" parallel mappings across datasets (and, potentially, dataset creat
 
 ### What of reductions? ###
 
-Reductions are relatively boring, involving repeated application of a reduction function
+Reductions are conceptually relatively boring, involving repeated application of a reduction function
 on 4 elements to carry out power-of-two reductions in the style of mipmapping.
 
 	(lambda (x)
 	  (reduce Fn x))
+
+There are, however, a couple of twists to this.
+
+Firstly, reductions are only "boring" if we're dealing with datasets loaded into the entirety of a 
+texture.  And, although textures don't *have* to be power-of-two, performance is (potentially 
+enormously) improved when they are.
+
+Why?
+
+Consider the following 4x4 texture (yeah, in reality a 4x4 texture is probably too small to 
+parallelise efficiently, but my keyboard needs a break) where the `.` in cells [3,4] & [4,4] 
+indicates "not used".
+
+	 +-+-+-+-+
+	 |1|2|3|4|
+	 +-+-+-+-+
+	 |5|6|7|8|
+	 +-+-+-+-+
+	 |9|8|7|6|
+	 +-+-+-+-+
+	 |5|4|.|.|
+	 +-+-+-+-+
+
+Now, for a simple array->array parallel map, for example our hypothetical
+
+     (parmap (+ 1 x))
+
+we can either process the "unused" cells and take the minor performance hit, or be a bit clever
+and take steps to simply not process them. In any case, downstream code won't be using anything
+in those cells, so we're safe.
+
+Now consider a simple reduction, for example averaging.  If we take a 4x4 mipmap approach, we would 
+expect the following output from our first recursion:
+
+       +---+---+
+       |3.5|5.5|
+       +---+---+
+       |6.5|6.5|
+       +---+---+
+
+Now, each of those cells is calculated using a single "instruction" (in reality, a shader program)
+and the lower right hand corner contains two undefined values.  Thus the shader program needs to 
+allow for the fact that some cells may be empty, somehow detect that status, and adapt its 
+processing to that fact.  Thus, in the bottom right hand corner, it should only take into
+account the values at [3,3] and [3,4], and then divide its result by 2 rather than 4.  This puts
+a significant amount of additional processing into the (limited) space allowed for a shader program
+and will degrade performance.
+
+An alternate approach would be to split the texture into that which fits into a single power-of-two
+texture (and can thus be efficiently parallelised) and "the rest" to be handled on the scalar side.
+We then further split the rest into power-of-two subtextures until we can no longer efficiently
+process, but at some point we must end up with a certainamount to be carried out in a scalar manner.
+For the above example, we could handle all but the bottom-right quadrant in parallel (rather than
+drawing a single quad covering the enire "computation surface", we would draw 3 quads covering the
+relevant quadrants) and handle the remaining cells in a scalar fashion.  The second recursion
+cannot be parallelised, so must be carried out in a scalar fashion.  
+
+This approach is feasible, and results in a minimal scalar load, but requires non-naive texture 
+loading in order to ensure minimal "unloaded" subtextures.  The obvious solution to this is to
+use a morton curve for indexing the entries.
+
+The next "hic" comes from the fact that a parallelised reduction, coded in a naive manner, may
+require a "first iteration" program and a "second iteration" program.
+
+Consider, for example
+
+	(any? (< x 3))
+
+If we take this naively, we would need to make a first reduction pass comparing the 4  relevant
+elements to 3, and setting the output values to `#t` or `#f` as necessary, and the second and
+subsequent passes reducing using `(any? x)`.  This, in fact gives us our probable solution, via
+an expansion to
+
+	(any? (parmap (select (< x 3) #t #f)))
+
+In other words, perform a parallel mapping pass to map input values to the correct type for
+the reduction pass.
+
+And then there's another 'hic'.  If we go back to the first example, averaging values in an
+array, the attentive reader will have noticed that we *do not get a correct value* via
+mipmapping unless we are reducing across the entirety of the array.  So if the 2 unfilled
+cells contained 3 and 2,
+
+	(/ (+ 1 2 3 4 5 6 7 8 9 8 7 6 5 4 3 2) 16) ;; => 5
+	(/ (+ (/ (+ 1 2 5 6) 4)
+	      (/ (+ 3 4 7 8) 4)
+	      (/ (+ 9 8 5 4) 4)
+	      (/ (+ 7 6 3 2) 4)) 4)                ;; => 5
+
+but
+
+	(/ (+ 1 2 3 4 5 6 7 8 9 8 7 6 5 4) 14)     ;; => 75/14
+	(/ (+ (/ (+ 1 2 5 6) 4)
+	      (/ (+ 3 4 7 8) 4)
+	      (/ (+ 9 8 5 4) 4)
+	      (/ (+ 7 6) 2)) 4)                    ;; => 11/2
+
+Oh dear.
+
+For averaging, the solution would be to treat the two unused values as zero, and divide by 16 / 4
+as necessary.  But that's not generalisable.  And why is that?  It's because averaging is not
+associative.
+
+_Reductions need to be associative_
+
+So we need to work out what's associative, and what's not.
